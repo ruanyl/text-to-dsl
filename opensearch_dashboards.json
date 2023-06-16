@@ -1,7 +1,7 @@
 {
-  "id": "myTestPlugin",
-  "version": "1.0.0",
-  "opensearchDashboardsVersion": "opensearchDashboards",
+  "id": "text2DSL",
+  "version": "2.8.0.0",
+  "opensearchDashboardsVersion": "2.8.0",
   "server": true,
   "ui": true,
   "requiredPlugins": [
