@@ -16,12 +16,31 @@ export function defineRoutes(router: IRouter) {
     },
     async (context, request, response) => {
       console.log('request body: ', request.body);
-      console.log('request params: ', request.params);
-      console.log('request query: ', request.query);
       const res = await context.core.opensearch.client.asCurrentUser.transport.request({
         method: 'GET',
         path: `/${request.body.indexPattern}/_search`,
         body: request.body.query,
+      });
+      return response.ok({
+        body: res,
+      });
+    }
+  );
+
+  router.get(
+    {
+      path: '/api/my_test_plugin/index/{indexName}',
+      validate: {
+        params: schema.object({
+          indexName: schema.string(),
+        }),
+      },
+    },
+    async (context, request, response) => {
+      console.log('request params: ', request.params);
+      const res = await context.core.opensearch.client.asCurrentUser.transport.request({
+        method: 'GET',
+        path: `/${request.params.indexName}`,
       });
       return response.ok({
         body: res,

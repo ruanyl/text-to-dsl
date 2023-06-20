@@ -16,11 +16,11 @@ import {
 } from '@elastic/eui';
 import React, { useState, useEffect } from 'react';
 import { useOpenSearchDashboards } from '../../../../src/plugins/opensearch_dashboards_react/public';
-import { translate } from './query_api';
+import { toDSL, toSQL } from './query_api';
 
 interface Props {
   indexPattern: string;
-  fields: string[];
+  fields: any;
 }
 
 export const Query = ({ indexPattern, fields }: Props) => {
@@ -28,41 +28,48 @@ export const Query = ({ indexPattern, fields }: Props) => {
     services: { http },
   } = useOpenSearchDashboards();
   const [loading, setLoading] = useState(false);
+  const [sqlLoading, setSQLLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [rawQuery, setRawQuery] = useState('');
-  const [query, setQuery] = useState('');
+  const [dsl, setDSL] = useState('');
+  const [sql, setSQL] = useState('');
   const [result, setResult] = useState();
 
   const onTranslate = async (e: React.MouseEvent<HTMLButtonElement>) => {
     setLoading(true);
-    setQuery('');
+    setDSL('');
+    setSQL('');
     setResult(undefined);
     try {
-      const dsl = await translate(
-        rawQuery,
-        indexPattern,
-        fields.map((f: any) => `${f.name}(${f.type})`)
-      );
-      setQuery(dsl);
+      const dsl = await toDSL(rawQuery, indexPattern, fields);
+      setDSL(dsl);
       console.log(dsl);
+      setLoading(false);
+
+      setSQLLoading(true);
+      const sql = await toSQL(rawQuery, Object.keys(fields.properties));
+      setSQL(sql);
+      console.log(dsl);
+      setSQLLoading(false);
     } catch (e) {
       setLoading(false);
+      setSQLLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
-    setQuery('');
+    setDSL('');
+    setSQL('');
     setResult(undefined);
   }, [indexPattern]);
 
   useEffect(() => {
     async function run() {
-      if (http && query) {
+      if (http && dsl) {
         setSearching(true);
         try {
           const res = await http.post('/api/my_test_plugin/run', {
-            body: JSON.stringify({ query: query, indexPattern: indexPattern }),
+            body: JSON.stringify({ query: dsl, indexPattern: indexPattern }),
           });
           setResult(res.body.hits?.hits?.map((h: any) => h._source));
         } catch (e) {
@@ -72,9 +79,15 @@ export const Query = ({ indexPattern, fields }: Props) => {
       }
     }
     run();
-  }, [query]);
+  }, [dsl]);
 
-  const columns = fields.slice(0, 7).map((f: any) => ({ name: f.name, field: f.name }));
+  //const columns = fields.slice(0, 7).map((f: any) => ({ name: f.name, field: f.name }));
+  const columns = fields.properties
+    ? Object.keys(fields.properties)
+        .slice(0, 7)
+        .map((f: any) => ({ name: f, field: f }))
+    : [];
+  console.log(columns);
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -95,26 +108,53 @@ export const Query = ({ indexPattern, fields }: Props) => {
         </EuiFlexItem>
         <EuiFlexItem>
           {loading && (
-            <div style={{ flexDirection: 'row' }}>
-              <EuiLoadingChart size="m" mono /> <span>Thinking...</span>
+            <div style={{ display: 'flex', flexDirection: 'row' }}>
+              <EuiLoadingChart size="m" mono />{' '}
+              <EuiText style={{ paddingLeft: 5 }} size="s">
+                Thinking...
+              </EuiText>
             </div>
           )}
-          {!loading && query && (
+          {!loading && dsl && (
             <>
               <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
                 <EuiIcon type="check" color="green" />
-                <EuiText size="xs" style={{ marginLeft: 5 }}>
+                <EuiText size="s" style={{ marginLeft: 5 }}>
                   Based on the index pattern and query you provided, this following DSL query might
                   be useful:
                 </EuiText>
               </div>
-              <EuiSpacer size="xs" />
+              <EuiSpacer size="s" />
               <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
                 {searching && <EuiLoadingSpinner size="m" />}
                 {!searching && result && <EuiIcon type="check" color="green" />}
-                <EuiText size="xs" style={{ marginLeft: 5 }}>
+                <EuiText size="s" style={{ marginLeft: 5 }}>
                   Searching with DSL:
-                  <EuiCode language="json">{query}</EuiCode>
+                  <EuiCode language="json">{dsl}</EuiCode>
+                </EuiText>
+              </div>
+            </>
+          )}
+          {sqlLoading && (
+            <div style={{ display: 'flex', flexDirection: 'row' }}>
+              <EuiLoadingChart size="m" mono />{' '}
+              <EuiText style={{ paddingLeft: 5 }} size="s">
+                Thinking of alternatives...
+              </EuiText>
+            </div>
+          )}
+          {!sqlLoading && sql && (
+            <>
+              <EuiSpacer size="s" />
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                <EuiText size="s" style={{ marginLeft: 5 }}>
+                  💡 Here is an alternative way with SQL, you may give it a try:
+                </EuiText>
+              </div>
+              <EuiSpacer size="s" />
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                <EuiText size="s" style={{ marginLeft: 5 }}>
+                  <EuiCode language="json">{sql}</EuiCode>
                 </EuiText>
               </div>
             </>

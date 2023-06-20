@@ -40,17 +40,17 @@ export const MyTestPluginApp = ({
 }: MyTestPluginAppDeps) => {
   const [indexPatternNames, setIndexPatternNames] = useState<string[]>([]);
   const [selectedIndexPattern, setSelectedIndexPattern] = useState('');
-  const [fields, setFields] = useState<string[]>([]);
+  const [fields, setFields] = useState<any>({});
 
   useEffect(() => {
     async function getIndexPatterns() {
       const result = await savedObjects.client.find<{ title: string; fields: string }>({
         type: 'index-pattern',
       });
+      console.log(result);
       const names = result.savedObjects.map((s) => {
         return s.attributes.title;
       });
-      console.log(result);
       setIndexPatternNames(names);
       setSelectedIndexPattern(names[0]);
     }
@@ -60,17 +60,24 @@ export const MyTestPluginApp = ({
   useEffect(() => {
     async function setIndexPatternFields() {
       if (selectedIndexPattern) {
-        const result = await savedObjects.client.find<{ title: string; fields: string }>({
-          type: 'index-pattern',
-          searchFields: ['title'],
-          search: `"${selectedIndexPattern}"`,
-        });
-        const all = JSON.parse(result.savedObjects[0].attributes.fields)
-          .filter((f: any) => !f.name.includes('.') && !f.name.startsWith('_'))
-          .map((f: any) => ({ name: f.name, type: f.type }));
-        setFields(all);
-        console.log(result.savedObjects[0].attributes.fields);
-        console.log(all);
+        const result = await http.get(`/api/my_test_plugin/index/${selectedIndexPattern}`);
+        const fields = result?.body?.[selectedIndexPattern]?.mappings;
+        if (fields) {
+          setFields(fields);
+        }
+        console.log(fields);
+        // const result = await savedObjects.client.find<{ title: string; fields: string }>({
+        //   type: 'index-pattern',
+        //   searchFields: ['title'],
+        //   search: `"${selectedIndexPattern}"`,
+        // });
+        // const all = JSON.parse(result.savedObjects[0].attributes.fields).filter(
+        //   (f: any) => !f.name.includes('.') && !f.name.startsWith('_')
+        // );
+        // //.map((f: any) => ({ name: f.name, type: f.type }));
+        // setFields(all);
+        // console.log(result.savedObjects[0].attributes.fields);
+        // console.log(all);
       }
     }
     setIndexPatternFields();
@@ -106,7 +113,7 @@ export const MyTestPluginApp = ({
                     <h2>
                       <FormattedMessage
                         id="myTestPlugin.congratulationsTitle"
-                        defaultMessage="Write human language and get SQL to query OpenSearch!"
+                        defaultMessage="OpenSearch with Natural Language"
                       />
                     </h2>
                   </EuiTitle>
